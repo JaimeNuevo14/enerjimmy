@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
-    "db:setup": "tsx scripts/init-db.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
@@ -15,18 +15,19 @@
   },
   "dependencies": {
     "@bryllim/workout-guide": "^1.0.0",
-    "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
-    "better-sqlite3": "^13.0.3",
     "next": "14.2.35",
     "next-auth": "^5.0.0-beta.32",
+    "pg": "^8.16.3",
     "prisma": "7.10.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
+    "@types/pg": "^8.15.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",

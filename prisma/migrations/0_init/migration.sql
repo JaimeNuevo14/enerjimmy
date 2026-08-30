@@ -1,98 +1,126 @@
 -- CreateTable
 CREATE TABLE "User" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Exercise" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "muscleGroup" TEXT NOT NULL,
     "equipment" TEXT NOT NULL,
     "category" TEXT NOT NULL,
-    "isCustom" BOOLEAN NOT NULL DEFAULT 0,
+    "isCustom" BOOLEAN NOT NULL DEFAULT false,
     "createdByUserId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Exercise_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Exercise_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Routine" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Routine_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Routine_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RoutineDay" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "routineId" TEXT NOT NULL,
     "dayOfWeek" TEXT NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
-    CONSTRAINT "RoutineDay_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "Routine" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+
+    CONSTRAINT "RoutineDay_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RoutineExercise" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "routineDayId" TEXT NOT NULL,
     "exerciseId" TEXT NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
     "targetSets" INTEGER NOT NULL DEFAULT 3,
     "targetReps" TEXT NOT NULL DEFAULT '8-12',
-    CONSTRAINT "RoutineExercise_routineDayId_fkey" FOREIGN KEY ("routineDayId") REFERENCES "RoutineDay" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "RoutineExercise_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "Exercise" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+
+    CONSTRAINT "RoutineExercise_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "WorkoutLog" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "routineExerciseId" TEXT,
     "exerciseId" TEXT NOT NULL,
-    "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "setNumber" INTEGER NOT NULL,
-    "weightKg" REAL NOT NULL,
+    "weightKg" DOUBLE PRECISION NOT NULL,
     "reps" INTEGER NOT NULL,
     "notes" TEXT,
-    CONSTRAINT "WorkoutLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "WorkoutLog_routineExerciseId_fkey" FOREIGN KEY ("routineExerciseId") REFERENCES "RoutineExercise" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "WorkoutLog_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "Exercise" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+
+    CONSTRAINT "WorkoutLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_name_key" ON "User" ("name");
+CREATE UNIQUE INDEX "User_name_key" ON "User"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Exercise_name_key" ON "Exercise" ("name");
+CREATE UNIQUE INDEX "Exercise_name_key" ON "Exercise"("name");
 
 -- CreateIndex
-CREATE INDEX "Exercise_muscleGroup_idx" ON "Exercise" ("muscleGroup");
+CREATE INDEX "Exercise_muscleGroup_idx" ON "Exercise"("muscleGroup");
 
 -- CreateIndex
-CREATE INDEX "Exercise_equipment_idx" ON "Exercise" ("equipment");
+CREATE INDEX "Exercise_equipment_idx" ON "Exercise"("equipment");
 
 -- CreateIndex
-CREATE INDEX "Routine_userId_idx" ON "Routine" ("userId");
+CREATE INDEX "Routine_userId_idx" ON "Routine"("userId");
 
 -- CreateIndex
-CREATE INDEX "RoutineDay_routineId_idx" ON "RoutineDay" ("routineId");
+CREATE INDEX "RoutineDay_routineId_idx" ON "RoutineDay"("routineId");
 
 -- CreateIndex
-CREATE INDEX "RoutineExercise_routineDayId_idx" ON "RoutineExercise" ("routineDayId");
+CREATE INDEX "RoutineExercise_routineDayId_idx" ON "RoutineExercise"("routineDayId");
 
 -- CreateIndex
-CREATE INDEX "RoutineExercise_exerciseId_idx" ON "RoutineExercise" ("exerciseId");
+CREATE INDEX "RoutineExercise_exerciseId_idx" ON "RoutineExercise"("exerciseId");
 
 -- CreateIndex
-CREATE INDEX "WorkoutLog_userId_idx" ON "WorkoutLog" ("userId");
+CREATE INDEX "WorkoutLog_userId_idx" ON "WorkoutLog"("userId");
 
 -- CreateIndex
-CREATE INDEX "WorkoutLog_exerciseId_idx" ON "WorkoutLog" ("exerciseId");
+CREATE INDEX "WorkoutLog_exerciseId_idx" ON "WorkoutLog"("exerciseId");
 
 -- CreateIndex
-CREATE INDEX "WorkoutLog_userId_exerciseId_idx" ON "WorkoutLog" ("userId", "exerciseId");
+CREATE INDEX "WorkoutLog_userId_exerciseId_idx" ON "WorkoutLog"("userId", "exerciseId");
+
+-- AddForeignKey
+ALTER TABLE "Exercise" ADD CONSTRAINT "Exercise_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Routine" ADD CONSTRAINT "Routine_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RoutineDay" ADD CONSTRAINT "RoutineDay_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "Routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RoutineExercise" ADD CONSTRAINT "RoutineExercise_routineDayId_fkey" FOREIGN KEY ("routineDayId") REFERENCES "RoutineDay"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RoutineExercise" ADD CONSTRAINT "RoutineExercise_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "Exercise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkoutLog" ADD CONSTRAINT "WorkoutLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkoutLog" ADD CONSTRAINT "WorkoutLog_routineExerciseId_fkey" FOREIGN KEY ("routineExerciseId") REFERENCES "RoutineExercise"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkoutLog" ADD CONSTRAINT "WorkoutLog_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "Exercise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

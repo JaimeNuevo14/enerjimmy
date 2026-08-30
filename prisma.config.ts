@@ -1,18 +1,18 @@
 import path from "node:path";
-import { defineConfig } from "prisma/config";
+import { config as loadEnv } from "dotenv";
+import { defineConfig, env } from "prisma/config";
 
-function dbUrl() {
-  const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const file = url.replace(/^file:/, "");
-  return `file:${path.resolve(file)}`;
-}
+// Prisma 7's config file is evaluated before Prisma's own .env auto-loading
+// kicks in, so without this, env("DATABASE_URL") below throws
+// "Cannot resolve environment variable" even when .env exists and is correct.
+loadEnv();
 
 export default defineConfig({
   schema: path.join("prisma", "schema.prisma"),
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
   migrations: {
     seed: "tsx prisma/seed.ts",
-  },
-  datasource: {
-    url: dbUrl(),
   },
 });

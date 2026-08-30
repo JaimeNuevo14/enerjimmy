@@ -13,21 +13,37 @@ añada.
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript + Tailwind CSS
-- **Prisma ORM** sobre **SQLite** (archivo local `prisma/dev.db`) para
-  desarrollo — una base de datos relacional real, sin depender de servicios
-  externos
+- **Prisma ORM** sobre **PostgreSQL** — la misma base de datos relacional en
+  local, en Neon y en producción, solo cambia `DATABASE_URL`
 - **Auth.js (NextAuth v5)** con proveedor de credenciales (solo nombre, sin
   contraseña), sesión JWT
+
+## Base de datos: Postgres en cualquier entorno
+
+Este proyecto usa Postgres tanto en local como en producción (a diferencia de
+una versión anterior que usaba SQLite solo para desarrollo). Necesitas una
+cadena de conexión Postgres (`DATABASE_URL`) apunte a donde apunte:
+
+- **Local con Postgres instalado en tu máquina**: crea una base de datos
+  vacía (`createdb enerjimmy`) y usa algo como
+  `postgresql://usuario:contraseña@localhost:5432/enerjimmy`.
+- **Local sin instalar Postgres (recomendado, más simple)**: crea una rama de
+  desarrollo gratuita en [Neon](https://neon.tech) y copia su cadena de
+  conexión — así tu entorno local ya es idéntico al de producción.
+- **Producción**: Neon, Vercel Postgres o Supabase funcionan igual de bien,
+  ya que Prisma solo necesita una `DATABASE_URL` de Postgres estándar.
 
 ## Cómo ejecutarlo en local
 
 ```bash
 npm install
 cp .env.example .env
+# Pega tu cadena de conexión Postgres en DATABASE_URL dentro de .env.
+
 # Genera un secreto y pégalo en NEXTAUTH_SECRET dentro de .env:
 openssl rand -base64 32
 
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 npx prisma db seed
 
 npm run dev
@@ -36,20 +52,40 @@ npm run dev
 Abre http://localhost:3000, regístrate con tu nombre y empieza a crear tu
 rutina.
 
-> **Nota sobre `prisma migrate dev`**: en algunos entornos con la red muy
-> restringida (sin acceso al CDN de binarios de Prisma), el comando de
-> migración puede no poder descargar su motor. Si te ocurre, este proyecto
-> incluye una alternativa 100% equivalente que no depende de ninguna
-> descarga externa:
->
-> ```bash
-> npm run db:setup   # crea prisma/dev.db aplicando prisma/migrations/0_init/migration.sql
-> npm run db:seed    # siembra los ejercicios (igual que "prisma db seed")
-> ```
->
-> Ambos caminos producen exactamente el mismo esquema de base de datos. En una
-> máquina con acceso normal a internet, usa siempre `npx prisma migrate dev` /
-> `npx prisma db seed`, que es el flujo estándar de Prisma.
+`npx prisma migrate deploy` + `npx prisma db seed` son los comandos estándar
+para dejar lista cualquier base de datos Postgres nueva (sea local, Neon o
+cualquier otro proveedor): aplican las migraciones en `prisma/migrations/` y
+siembran la biblioteca de ejercicios.
+
+## Desplegar en Vercel
+
+1. En [vercel.com](https://vercel.com), importa el repositorio de GitHub
+   (`github.com/JaimeNuevo14/enerjimmy`).
+2. En la configuración del proyecto, añade las variables de entorno:
+   - `DATABASE_URL`: la cadena de conexión de tu base de datos Neon (u otro
+     Postgres).
+   - `NEXTAUTH_SECRET`: genera uno con `openssl rand -base64 32`.
+   - `NEXTAUTH_URL`: la URL pública del despliegue (p. ej.
+     `https://enerjimmy.vercel.app`). Como esta URL solo se conoce después
+     del primer despliegue, puedes dejar un valor provisional y actualizarlo
+     luego (Vercel también expone `https://<tu-proyecto>.vercel.app`, así que
+     normalmente ya sabes la URL de antemano).
+3. Despliega. Vercel instala dependencias (`npm install`, que ejecuta
+   `prisma generate` automáticamente vía `postinstall`) y construye la app,
+   pero **no** aplica migraciones ni siembra datos por ti.
+4. Después del primer despliegue, ejecuta una vez, desde tu propia máquina,
+   las migraciones y la siembra contra la base de datos de producción:
+
+   ```bash
+   export DATABASE_URL="<la misma cadena de conexión de Neon que pusiste en Vercel>"
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
+
+   (En Windows/PowerShell: `$env:DATABASE_URL="..."` en vez de `export`.)
+
+Con eso, la app en producción ya tiene el esquema y los 177 ejercicios de la
+biblioteca, y cualquiera puede registrarse desde la URL pública.
 
 ## Estructura de datos
 
@@ -57,30 +93,17 @@ rutina.
 `RoutineDay` (lunes a domingo) → `RoutineExercise` (series/reps objetivo por
 ejercicio y día), y `WorkoutLog` (cada serie registrada: peso, reps, fecha).
 
-## Producción con múltiples usuarios (varios dispositivos)
+## Múltiples usuarios (varios dispositivos)
 
-Para que varios amigos/familiares usen la app desde sus propios móviles a la
-vez, SQLite en un solo archivo no es suficiente (no es accesible desde fuera
-de este servidor). El cambio es pequeño, unos 5 minutos:
-
-1. Crea una base de datos Postgres gratuita (Neon, Supabase o Vercel
-   Postgres).
-2. En `prisma/schema.prisma`, cambia `provider = "sqlite"` por
-   `provider = "postgresql"` en el bloque `datasource`.
-3. Define `DATABASE_URL` con la cadena de conexión de Postgres (como variable
-   de entorno en Vercel, o en tu `.env`).
-4. Ejecuta `npx prisma migrate deploy` contra esa base de datos.
-
-Con eso, cualquier persona que se registre en la app tendrá sus datos en la
-misma base de datos compartida en la nube, cada una viendo solo lo suyo.
+Como la base de datos ya es Postgres alojado (Neon, Supabase o Vercel
+Postgres), varios amigos/familiares pueden usar la app desde sus propios
+móviles a la vez sin ningún cambio adicional: cualquier persona que se
+registre en la app desplegada en Vercel tendrá sus datos en esa misma base de
+datos compartida en la nube, cada una viendo solo lo suyo.
 
 ## Próximos pasos
 
-- **Desplegar la web**: sube el repositorio a GitHub y conéctalo a
-  [Vercel](https://vercel.com) (funciona muy bien con Next.js). Añade ahí las
-  variables de entorno (`DATABASE_URL` apuntando a tu Postgres, y
-  `NEXTAUTH_SECRET`/`NEXTAUTH_URL`) para que Jaime y el resto puedan entrar
-  desde cualquier dispositivo con una URL pública.
+- **Desplegar la web**: ver la sección "Desplegar en Vercel" más arriba.
 - **Convertirla en app móvil nativa**: hay dos caminos razonables. (1) Crear
   una app con **React Native / Expo** que consuma esta misma aplicación como
   backend (las rutas API y la base de datos ya están listas para servir a un

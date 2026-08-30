@@ -1,15 +1,14 @@
 // Prisma schema for ENERJIMMY
-// Local dev uses SQLite (file-based, zero setup). To move to Postgres for
-// multi-device/multi-user deployment, change `provider` below to
-// "postgresql" and set DATABASE_URL to your hosted Postgres connection
-// string (Neon / Supabase / Vercel Postgres). See README.md.
+// Uses PostgreSQL. Point DATABASE_URL at a local Postgres instance or a
+// hosted one (Neon / Supabase / Vercel Postgres) — same schema either way.
+// See README.md.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
