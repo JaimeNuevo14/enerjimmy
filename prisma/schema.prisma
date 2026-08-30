@@ -1,0 +1,101 @@
+// Prisma schema for ENERJIMMY
+// Local dev uses SQLite (file-based, zero setup). To move to Postgres for
+// multi-device/multi-user deployment, change `provider` below to
+// "postgresql" and set DATABASE_URL to your hosted Postgres connection
+// string (Neon / Supabase / Vercel Postgres). See README.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  routines        Routine[]
+  workoutLogs     WorkoutLog[]
+  customExercises Exercise[]   @relation("CustomExercises")
+}
+
+model Exercise {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  muscleGroup     String
+  equipment       String
+  category        String
+  isCustom        Boolean  @default(false)
+  createdByUserId String?
+  createdBy       User?    @relation("CustomExercises", fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  routineExercises RoutineExercise[]
+  workoutLogs      WorkoutLog[]
+
+  @@index([muscleGroup])
+  @@index([equipment])
+}
+
+model Routine {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days RoutineDay[]
+
+  @@index([userId])
+}
+
+model RoutineDay {
+  id        String @id @default(cuid())
+  routineId String
+  dayOfWeek String // lunes, martes, miercoles, jueves, viernes, sabado, domingo
+  order     Int    @default(0)
+
+  routine   Routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises RoutineExercise[]
+
+  @@index([routineId])
+}
+
+model RoutineExercise {
+  id           String @id @default(cuid())
+  routineDayId String
+  exerciseId   String
+  order        Int    @default(0)
+  targetSets   Int    @default(3)
+  targetReps   String @default("8-12")
+
+  routineDay  RoutineDay   @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+  exercise    Exercise     @relation(fields: [exerciseId], references: [id])
+  workoutLogs WorkoutLog[]
+
+  @@index([routineDayId])
+  @@index([exerciseId])
+}
+
+model WorkoutLog {
+  id                String   @id @default(cuid())
+  userId            String
+  routineExerciseId String?
+  exerciseId        String
+  date              DateTime @default(now())
+  setNumber         Int
+  weightKg          Float
+  reps              Int
+  notes             String?
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineExercise RoutineExercise? @relation(fields: [routineExerciseId], references: [id], onDelete: SetNull)
+  exercise        Exercise         @relation(fields: [exerciseId], references: [id])
+
+  @@index([userId])
+  @@index([exerciseId])
+  @@index([userId, exerciseId])
+}
