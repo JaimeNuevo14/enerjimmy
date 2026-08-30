@@ -101,6 +101,43 @@ móviles a la vez sin ningún cambio adicional: cualquier persona que se
 registre en la app desplegada en Vercel tendrá sus datos en esa misma base de
 datos compartida en la nube, cada una viendo solo lo suyo.
 
+## Instalar ENERJIMMY como app en el móvil (PWA)
+
+ENERJIMMY es una **Progressive Web App (PWA)**: se puede "instalar" desde el
+navegador del móvil para que aparezca como un icono más en la pantalla de
+inicio y se abra a pantalla completa, sin la barra de direcciones del
+navegador — sin pasar por ninguna app store.
+
+**Android (Chrome):**
+
+1. Abre la app desplegada en Chrome.
+2. Toca el menú (los tres puntos, arriba a la derecha).
+3. Elige **"Instalar app"** (o **"Añadir a pantalla de inicio"**, según la
+   versión de Chrome).
+4. Confirma. El icono de ENERJIMMY aparecerá en la pantalla de inicio y se
+   abrirá en su propia ventana, sin la interfaz del navegador.
+
+**iPhone (Safari):**
+
+1. Abre la app desplegada en Safari (tiene que ser Safari, no Chrome — en
+   iOS solo Safari puede instalar PWAs en la pantalla de inicio).
+2. Toca el botón de **compartir** (el cuadrado con la flecha hacia arriba).
+3. Elige **"Añadir a pantalla de inicio"**.
+4. Confirma el nombre y toca "Añadir". El icono aparecerá junto a tus demás
+   apps.
+
+**¿Qué es (y qué no es) una PWA?**
+
+Es una web que se comporta como una app instalada: tiene su propio icono,
+abre sin barra de navegador ("standalone"), y recuerda tu sesión igual que
+cualquier pestaña del navegador. Sigue siendo, por dentro, la misma web — no
+es una app nativa distribuida por Google Play o la App Store, no tiene acceso
+a APIs nativas del teléfono más allá de lo que ya permite un navegador, y
+(en esta implementación) **no funciona sin conexión**: como los datos y el
+login viven en la base de datos en la nube, se deja deliberadamente sin cache
+todo lo que no sea el icono/estilos básicos, para evitar mostrar datos
+desactualizados o de otra sesión.
+
 ## Próximos pasos
 
 - **Desplegar la web**: ver la sección "Desplegar en Vercel" más arriba.
