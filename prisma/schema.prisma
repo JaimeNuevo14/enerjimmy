@@ -12,13 +12,17 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String   @unique
+  // Nullable so existing pre-password accounts keep working: null means
+  // "no password set yet" and the next login adopts whatever is typed.
+  passwordHash String?
+  createdAt    DateTime @default(now())
 
   routines        Routine[]
   workoutLogs     WorkoutLog[]
-  customExercises Exercise[]   @relation("CustomExercises")
+  workoutSessions WorkoutSession[]
+  customExercises Exercise[]       @relation("CustomExercises")
 }
 
 model Exercise {
@@ -57,8 +61,9 @@ model RoutineDay {
   dayOfWeek String // lunes, martes, miercoles, jueves, viernes, sabado, domingo
   order     Int    @default(0)
 
-  routine   Routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  exercises RoutineExercise[]
+  routine         Routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises       RoutineExercise[]
+  workoutSessions WorkoutSession[]
 
   @@index([routineId])
 }
@@ -84,17 +89,50 @@ model WorkoutLog {
   userId            String
   routineExerciseId String?
   exerciseId        String
+  workoutSessionId  String?
   date              DateTime @default(now())
   setNumber         Int
-  weightKg          Float
-  reps              Int
+  // Strength sets: weightKg + reps. Cardio entries leave these null and use
+  // durationSeconds/distanceKm/paceSecPerKm instead — a WorkoutLog row is
+  // either a strength set or a cardio session entry, never both.
+  weightKg          Float?
+  reps              Int?
+  durationSeconds   Int?
+  distanceKm        Float?
+  paceSecPerKm      Int?
   notes             String?
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   routineExercise RoutineExercise? @relation(fields: [routineExerciseId], references: [id], onDelete: SetNull)
   exercise        Exercise         @relation(fields: [exerciseId], references: [id])
+  workoutSession  WorkoutSession?  @relation(fields: [workoutSessionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([exerciseId])
   @@index([userId, exerciseId])
+  @@index([workoutSessionId])
+}
+
+// A "Finalizar rutina" summary: groups the WorkoutLog rows logged in one
+// sitting for a routine day and stores the computed highlights (total
+// weight moved, sets, exercises, cardio distance) so /history can show a
+// per-session card without recomputing from scratch each time.
+model WorkoutSession {
+  id                     String   @id @default(cuid())
+  userId                 String
+  routineDayId           String?
+  date                   DateTime @default(now())
+  totalWeightKg          Float    @default(0)
+  totalSets              Int      @default(0)
+  totalExercises         Int      @default(0)
+  totalReps              Int?
+  totalCardioDistanceKm  Float?
+  createdAt              DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineDay  RoutineDay?  @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
+  workoutLogs WorkoutLog[]
+
+  @@index([userId])
+  @@index([routineDayId])
 }

@@ -5,18 +5,17 @@ rutinas de gimnasio y tu progreso: crea rutinas por día de la semana, registra
 series, peso y repeticiones, y consulta tu historial de progresión por
 ejercicio. Pensada para usarse principalmente desde el navegador del móvil.
 
-Cada persona tiene su propia cuenta (solo con su nombre, sin contraseña) y
-solo ve sus propias rutinas y registros. La biblioteca de ejercicios es
-compartida por todos, más los ejercicios personalizados que cada usuario
-añada.
+Cada persona tiene su propia cuenta (nombre + contraseña) y solo ve sus
+propias rutinas y registros. La biblioteca de ejercicios es compartida por
+todos, más los ejercicios personalizados que cada usuario añada.
 
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript + Tailwind CSS
 - **Prisma ORM** sobre **PostgreSQL** — la misma base de datos relacional en
   local, en Neon y en producción, solo cambia `DATABASE_URL`
-- **Auth.js (NextAuth v5)** con proveedor de credenciales (solo nombre, sin
-  contraseña), sesión JWT
+- **Auth.js (NextAuth v5)** con proveedor de credenciales (nombre +
+  contraseña, hasheada con `bcryptjs`), sesión JWT
 
 ## Base de datos: Postgres en cualquier entorno
 
@@ -91,7 +90,13 @@ biblioteca, y cualquiera puede registrarse desde la URL pública.
 
 `User`, `Exercise` (biblioteca compartida + personalizados), `Routine` →
 `RoutineDay` (lunes a domingo) → `RoutineExercise` (series/reps objetivo por
-ejercicio y día), y `WorkoutLog` (cada serie registrada: peso, reps, fecha).
+ejercicio y día), y `WorkoutLog` (cada serie registrada: peso y reps para
+ejercicios normales, o tiempo/ritmo/distancia para ejercicios de
+`muscleGroup === "cardio"` — un `WorkoutLog` es lo uno o lo otro, nunca
+ambos). Al pulsar "Finalizar rutina" se crea un `WorkoutSession` que agrupa
+los `WorkoutLog` registrados ese día para ese `RoutineDay` y guarda los
+totales ya calculados (peso total movido, series, ejercicios, distancia
+cardio) para mostrarlos en Historial sin recalcular.
 
 ## Múltiples usuarios (varios dispositivos)
 
@@ -151,9 +156,13 @@ desactualizados o de otra sesión.
 
 ## Limitaciones conocidas (MVP)
 
-- No hay contraseña ni verificación de email — el acceso es solo por nombre,
-  pensado para un grupo cerrado de confianza (cualquiera que conozca o
-  adivine un nombre registrado podría entrar a esa cuenta).
+- Login por nombre + contraseña, sin verificación de email ni "olvidé mi
+  contraseña" — pensado para un grupo cerrado de confianza; si alguien
+  olvida su contraseña hay que arreglarlo a mano en la base de datos (poner
+  su `passwordHash` a `NULL` para que el siguiente login adopte una nueva).
+  Las cuentas creadas antes de esta función siguen intactas: la primera vez
+  que esa persona inicie sesión con contraseña, la que escriba se guarda
+  como la suya a partir de ese momento.
 - Una rutina no tiene un concepto explícito de "activa"; el panel de hoy usa
   siempre la rutina creada más recientemente.
 - No hay gráficos de progreso, solo la tabla de historial con mínimo, máximo

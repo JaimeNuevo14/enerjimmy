@@ -8,6 +8,7 @@ import Link from "next/link";
 export default function LoginPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -18,13 +19,14 @@ export default function LoginPage() {
 
     const res = await signIn("credentials", {
       name,
+      password,
       redirect: false,
     });
 
     setLoading(false);
 
     if (res?.error) {
-      setError("No existe ninguna cuenta con ese nombre.");
+      setError("Nombre o contraseña incorrectos.");
       return;
     }
 
@@ -47,6 +49,13 @@ export default function LoginPage() {
         >
           Inicia sesión para continuar
         </p>
+        <p
+          className="ex-meta"
+          style={{ textAlign: "center", marginTop: -12, marginBottom: 20 }}
+        >
+          ¿Primera vez con contraseña? Escribe la que quieras usar a partir
+          de ahora.
+        </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
@@ -57,6 +66,18 @@ export default function LoginPage() {
               onChange={(e) => setName(e.target.value)}
               required
               autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="field-label">Contraseña</label>
+            <input
+              type="password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
             />
           </div>
 

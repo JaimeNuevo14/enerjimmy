@@ -8,6 +8,7 @@ import Link from "next/link";
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +20,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, password }),
     });
 
     const data = await res.json();
@@ -32,6 +33,7 @@ export default function RegisterPage() {
 
     const signInRes = await signIn("credentials", {
       name,
+      password,
       redirect: false,
     });
 
@@ -72,6 +74,19 @@ export default function RegisterPage() {
               required
               minLength={3}
               autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="field-label">Contraseña</label>
+            <input
+              type="password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
             />
           </div>
 

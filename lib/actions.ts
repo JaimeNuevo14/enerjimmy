@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DIAS } from "@/lib/days";
@@ -246,4 +248,158 @@ export async function deleteWorkoutLog(logId: string) {
   const userId = await requireUserId();
   await prisma.workoutLog.deleteMany({ where: { id: logId, userId } });
   revalidatePath("/history");
+}
+
+// Cardio exercises (muscleGroup === "cardio") log one session entry —
+// tiempo/ritmo/distancia — instead of a grid of weight/reps sets.
+//
+// weightKg/reps/durationSeconds/distanceKm/paceSecPerKm were added to
+// WorkoutLog after the Prisma Client already generated in this environment
+// (see prisma/migrations/20260831000000_add_password_cardio_sessions), so
+// this goes through parameterized raw SQL rather than the typed
+// `prisma.workoutLog.create` used by logSets above. It is otherwise the
+// same insert.
+export async function logCardio(
+  routineId: string | null,
+  day: string | null,
+  formData: FormData
+) {
+  const userId = await requireUserId();
+
+  const exerciseId = String(formData.get("exerciseId") ?? "");
+  const routineExerciseId = formData.get("routineExerciseId")
+    ? String(formData.get("routineExerciseId"))
+    : null;
+
+  const durationSecondsRaw = formData.get("durationSeconds");
+  const distanceKmRaw = formData.get("distanceKm");
+  const paceSecPerKmRaw = formData.get("paceSecPerKm");
+
+  const durationSeconds =
+    durationSecondsRaw !== null && durationSecondsRaw !== ""
+      ? Number(durationSecondsRaw)
+      : null;
+  const distanceKm =
+    distanceKmRaw !== null && distanceKmRaw !== ""
+      ? Number(distanceKmRaw)
+      : null;
+  const paceSecPerKm =
+    paceSecPerKmRaw !== null && paceSecPerKmRaw !== ""
+      ? Number(paceSecPerKmRaw)
+      : null;
+
+  if (!exerciseId) return;
+  if (
+    (durationSeconds === null || Number.isNaN(durationSeconds)) &&
+    (distanceKm === null || Number.isNaN(distanceKm)) &&
+    (paceSecPerKm === null || Number.isNaN(paceSecPerKm))
+  ) {
+    return;
+  }
+
+  const id = randomUUID();
+  await prisma.$executeRaw`
+    INSERT INTO "WorkoutLog"
+      ("id", "userId", "routineExerciseId", "exerciseId", "date", "setNumber", "durationSeconds", "distanceKm", "paceSecPerKm")
+    VALUES
+      (${id}, ${userId}, ${routineExerciseId}, ${exerciseId}, CURRENT_TIMESTAMP, 1,
+       ${Number.isFinite(durationSeconds as number) ? durationSeconds : null},
+       ${Number.isFinite(distanceKm as number) ? distanceKm : null},
+       ${Number.isFinite(paceSecPerKm as number) ? paceSecPerKm : null})
+  `;
+
+  if (routineId) {
+    revalidatePath(`/routines/${routineId}/log/${day}`);
+  }
+  revalidatePath("/");
+  revalidatePath("/history");
+}
+
+// ---------------- "Finalizar rutina" session summary ----------------
+
+type SessionLogRow = {
+  id: string;
+  exerciseId: string;
+  weightKg: number | null;
+  reps: number | null;
+  distanceKm: number | null;
+};
+
+export async function finalizeRoutineDay(
+  routineId: string,
+  day: string,
+  routineDayId: string
+): Promise<{ ok: boolean; message?: string; sessionId?: string }> {
+  const userId = await requireUserId();
+
+  const routineDay = await prisma.routineDay.findFirst({
+    where: { id: routineDayId, routine: { id: routineId, userId } },
+  });
+  if (!routineDay) return { ok: false, message: "No autorizado." };
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  // "This session's logs" = every WorkoutLog for this user + this routine
+  // day, logged today, not already attached to a finalized session — i.e.
+  // whatever the user just entered on this log page before hitting
+  // "Finalizar rutina".
+  const rows = await prisma.$queryRaw<SessionLogRow[]>`
+    SELECT wl."id", wl."exerciseId", wl."weightKg", wl."reps", wl."distanceKm"
+    FROM "WorkoutLog" wl
+    JOIN "RoutineExercise" re ON re."id" = wl."routineExerciseId"
+    WHERE wl."userId" = ${userId}
+      AND re."routineDayId" = ${routineDayId}
+      AND wl."workoutSessionId" IS NULL
+      AND wl."date" >= ${startOfDay}
+      AND wl."date" < ${endOfDay}
+  `;
+
+  if (rows.length === 0) {
+    return {
+      ok: false,
+      message: "Todavía no has registrado ninguna serie hoy.",
+    };
+  }
+
+  let totalWeightKg = 0;
+  let totalSets = 0;
+  let totalReps = 0;
+  let totalCardioDistanceKm = 0;
+  let hasCardio = false;
+  const exerciseIds = new Set<string>();
+
+  for (const r of rows) {
+    exerciseIds.add(r.exerciseId);
+    if (r.weightKg !== null && r.reps !== null) {
+      totalWeightKg += r.weightKg * r.reps;
+      totalSets += 1;
+      totalReps += r.reps;
+    }
+    if (r.distanceKm !== null) {
+      hasCardio = true;
+      totalCardioDistanceKm += r.distanceKm;
+    }
+  }
+
+  const sessionId = randomUUID();
+  await prisma.$executeRaw`
+    INSERT INTO "WorkoutSession"
+      ("id", "userId", "routineDayId", "date", "totalWeightKg", "totalSets", "totalExercises", "totalReps", "totalCardioDistanceKm", "createdAt")
+    VALUES
+      (${sessionId}, ${userId}, ${routineDayId}, CURRENT_TIMESTAMP, ${totalWeightKg}, ${totalSets}, ${exerciseIds.size}, ${totalReps}, ${hasCardio ? totalCardioDistanceKm : null}, CURRENT_TIMESTAMP)
+  `;
+
+  const logIds = rows.map((r) => r.id);
+  await prisma.$executeRaw`
+    UPDATE "WorkoutLog" SET "workoutSessionId" = ${sessionId}
+    WHERE "id" IN (${Prisma.join(logIds)})
+  `;
+
+  revalidatePath(`/routines/${routineId}/log/${day}`);
+  revalidatePath("/history");
+
+  return { ok: true, sessionId };
 }

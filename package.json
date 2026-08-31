@@ -17,15 +17,17 @@
     "@bryllim/workout-guide": "^1.0.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5",
     "next": "14.2.35",
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.16.3",
     "prisma": "7.10.0",
     "react": "^18",
-    "react-dom": "^18",
-    "dotenv": "^16.4.5"
+    "react-dom": "^18"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.15.6",
     "@types/react": "^18",
