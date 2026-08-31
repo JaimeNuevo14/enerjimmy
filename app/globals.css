@@ -379,9 +379,9 @@ h3 {
   font-weight: 600;
   font-size: 18px;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.15;
 }
 .stat .l {
   font-size: 11px;

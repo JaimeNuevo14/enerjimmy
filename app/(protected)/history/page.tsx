@@ -238,12 +238,6 @@ export default async function HistoryPage({
 
                 <div className="stat-row">
                   <div className="stat">
-                    <div className="n up">
-                      {s.totalWeightKg.toLocaleString("es-ES")}&nbsp;kg
-                    </div>
-                    <div className="l">peso total movido</div>
-                  </div>
-                  <div className="stat">
                     <div className="n">{s.totalSets}</div>
                     <div className="l">series</div>
                   </div>
@@ -253,22 +247,30 @@ export default async function HistoryPage({
                   </div>
                 </div>
 
-                {(s.totalReps !== null || s.totalCardioDistanceKm !== null) && (
+                <div className="stat-row">
+                  <div className="stat">
+                    <div className="n up">
+                      {Math.round(s.totalWeightKg).toLocaleString("es-ES")}
+                      &nbsp;kg
+                    </div>
+                    <div className="l">peso total movido</div>
+                  </div>
+                  {s.totalReps !== null && (
+                    <div className="stat">
+                      <div className="n">{s.totalReps}</div>
+                      <div className="l">reps totales</div>
+                    </div>
+                  )}
+                </div>
+
+                {s.totalCardioDistanceKm !== null && (
                   <div className="stat-row">
-                    {s.totalReps !== null && (
-                      <div className="stat">
-                        <div className="n">{s.totalReps}</div>
-                        <div className="l">reps totales</div>
+                    <div className="stat">
+                      <div className="n">
+                        {s.totalCardioDistanceKm}&nbsp;km
                       </div>
-                    )}
-                    {s.totalCardioDistanceKm !== null && (
-                      <div className="stat">
-                        <div className="n">
-                          {s.totalCardioDistanceKm}&nbsp;km
-                        </div>
-                        <div className="l">distancia cardio</div>
-                      </div>
-                    )}
+                      <div className="l">distancia cardio</div>
+                    </div>
                   </div>
                 )}
               </div>
