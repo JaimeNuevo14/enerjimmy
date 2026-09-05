@@ -15,6 +15,21 @@ import {
   type ExerciseDraftState,
 } from "./draft";
 
+// Purely informational "last time" hint shown at the top of an
+// ExerciseLogCard — read-only, never touches draft state.
+export type PreviousLog =
+  | { date: Date; sets: { weightKg: number; reps: number }[] }
+  | {
+      date: Date;
+      cardio: {
+        durationSeconds: number | null;
+        distanceKm: number | null;
+        speedKmh: number | null;
+        paceSecPerKm: number | null;
+      };
+    }
+  | null;
+
 export type ExerciseMeta = {
   routineExerciseId: string;
   exerciseId: string;
@@ -22,6 +37,7 @@ export type ExerciseMeta = {
   muscleGroup: string;
   targetSets: number;
   targetReps: string;
+  previous: PreviousLog;
 };
 
 function defaultStateFor(ex: ExerciseMeta): ExerciseDraftState {
@@ -109,6 +125,7 @@ export default function DayLogSession({
           muscleGroup={ex.muscleGroup}
           targetSets={ex.targetSets}
           targetReps={ex.targetReps}
+          previous={ex.previous}
           state={draft[ex.routineExerciseId] ?? defaultStateFor(ex)}
           onChange={(next) => updateExercise(ex.routineExerciseId, next)}
         />

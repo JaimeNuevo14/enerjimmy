@@ -9,8 +9,7 @@ export type StrengthSetDraft = { weight: string; reps: string };
 export type CardioEntryDraft = {
   minutes: string;
   seconds: string;
-  paceMin: string;
-  paceSec: string;
+  speedKmh: string;
   distance: string;
 };
 
@@ -22,7 +21,7 @@ export type ExerciseDraftState =
 export type DayDraft = Record<string, ExerciseDraftState>;
 
 export function emptyCardio(): CardioEntryDraft {
-  return { minutes: "", seconds: "", paceMin: "", paceSec: "", distance: "" };
+  return { minutes: "", seconds: "", speedKmh: "", distance: "" };
 }
 
 // There is no userId available on the client (session lives server-side),

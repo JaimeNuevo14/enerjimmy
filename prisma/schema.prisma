@@ -93,13 +93,21 @@ model WorkoutLog {
   date              DateTime @default(now())
   setNumber         Int
   // Strength sets: weightKg + reps. Cardio entries leave these null and use
-  // durationSeconds/distanceKm/paceSecPerKm instead — a WorkoutLog row is
+  // durationSeconds/distanceKm/speedKmh instead — a WorkoutLog row is
   // either a strength set or a cardio session entry, never both.
   weightKg          Float?
   reps              Int?
   durationSeconds   Int?
   distanceKm        Float?
+  // Legacy pace field (min:sec/km) — kept for any cardio rows logged before
+  // "velocidad media" replaced it, so they keep displaying correctly. New
+  // cardio entries no longer ask for this; they populate speedKmh instead
+  // (lib/actions.ts derives a paceSecPerKm from it for backward-compatible
+  // reads, but nothing user-facing asks for pace anymore).
   paceSecPerKm      Int?
+  // Speed in km/h, as read directly off the cardio machine's display. This
+  // is what new cardio entries actually store going forward.
+  speedKmh          Float?
   notes             String?
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)

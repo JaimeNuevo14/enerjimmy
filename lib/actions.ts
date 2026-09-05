@@ -206,7 +206,7 @@ export type FinalizeEntry = {
   sets?: { weightKg: number; reps: number }[];
   cardio?: {
     durationSeconds?: number | null;
-    paceSecPerKm?: number | null;
+    speedKmh?: number | null;
     distanceKm?: number | null;
   };
 };
@@ -233,6 +233,7 @@ export async function finalizeRoutineDay(
     durationSeconds: number | null;
     distanceKm: number | null;
     paceSecPerKm: number | null;
+    speedKmh: number | null;
   };
 
   const logRows: LogRow[] = [];
@@ -261,6 +262,7 @@ export async function finalizeRoutineDay(
           durationSeconds: null,
           distanceKm: null,
           paceSecPerKm: null,
+          speedKmh: null,
         });
       });
     } else if (entry.kind === "cardio") {
@@ -273,12 +275,17 @@ export async function finalizeRoutineDay(
         typeof c?.distanceKm === "number" && Number.isFinite(c.distanceKm)
           ? c.distanceKm
           : null;
-      const paceSecPerKm =
-        typeof c?.paceSecPerKm === "number" && Number.isFinite(c.paceSecPerKm)
-          ? c.paceSecPerKm
+      const speedKmh =
+        typeof c?.speedKmh === "number" && Number.isFinite(c.speedKmh) && c.speedKmh > 0
+          ? c.speedKmh
           : null;
+      // Auto-derived purely for the legacy "Ritmo" display code paths (e.g.
+      // any old dashboards/queries reading paceSecPerKm) — the user never
+      // types a pace anymore, they only enter the speed their machine
+      // shows.
+      const paceSecPerKm = speedKmh !== null ? Math.round(3600 / speedKmh) : null;
 
-      if (durationSeconds !== null || distanceKm !== null || paceSecPerKm !== null) {
+      if (durationSeconds !== null || distanceKm !== null || speedKmh !== null) {
         exerciseIdsWithData.add(entry.exerciseId);
         logRows.push({
           exerciseId: entry.exerciseId,
@@ -289,6 +296,7 @@ export async function finalizeRoutineDay(
           durationSeconds,
           distanceKm,
           paceSecPerKm,
+          speedKmh,
         });
       }
     }
@@ -349,6 +357,23 @@ export async function finalizeRoutineDay(
         paceSecPerKm: r.paceSecPerKm,
       })),
     });
+
+    // speedKmh was added to the schema after the Prisma Client in this repo
+    // was last generated (see the comment on app/(protected)/history/page.tsx),
+    // so the typed `createMany` call above can't reference it yet — it's
+    // set here via raw SQL instead, matched by the (session, exercise,
+    // setNumber) combo createMany just inserted (unique: one cardio row per
+    // exercise per finalize).
+    for (const r of logRows) {
+      if (r.speedKmh === null) continue;
+      await tx.$executeRaw`
+        UPDATE "WorkoutLog"
+        SET "speedKmh" = ${r.speedKmh}
+        WHERE "workoutSessionId" = ${session.id}
+          AND "exerciseId" = ${r.exerciseId}
+          AND "setNumber" = ${r.setNumber}
+      `;
+    }
 
     return session.id;
   });

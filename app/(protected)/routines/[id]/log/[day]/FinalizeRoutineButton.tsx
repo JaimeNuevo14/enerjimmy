@@ -36,10 +36,9 @@ export default function FinalizeRoutineButton({
             ? (parseInt(c.minutes || "0", 10) || 0) * 60 +
               (parseInt(c.seconds || "0", 10) || 0)
             : null;
-        const paceSecPerKm =
-          c && (c.paceMin !== "" || c.paceSec !== "")
-            ? (parseInt(c.paceMin || "0", 10) || 0) * 60 +
-              (parseInt(c.paceSec || "0", 10) || 0)
+        const speedKmh =
+          c && c.speedKmh !== "" && !Number.isNaN(parseFloat(c.speedKmh))
+            ? parseFloat(c.speedKmh)
             : null;
         const distanceKm = c && c.distance !== "" ? parseFloat(c.distance) : null;
 
@@ -47,7 +46,7 @@ export default function FinalizeRoutineButton({
           routineExerciseId: ex.routineExerciseId,
           exerciseId: ex.exerciseId,
           kind: "cardio",
-          cardio: { durationSeconds, paceSecPerKm, distanceKm },
+          cardio: { durationSeconds, speedKmh, distanceKm },
         };
       }
 

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DIA_LABEL } from "@/lib/days";
+import { effectiveSpeedKmh, formatMinSec, formatSpeedKmh } from "@/lib/cardio";
 import ExercisePicker from "./ExercisePicker";
 import DeleteLogButton from "./DeleteLogButton";
 import Sparkline from "./Sparkline";
@@ -19,6 +20,7 @@ type LogRow = {
   durationSeconds: number | null;
   distanceKm: number | null;
   paceSecPerKm: number | null;
+  speedKmh: number | null;
 };
 
 type SessionRow = {
@@ -33,12 +35,6 @@ type SessionRow = {
   totalReps: number | null;
   totalCardioDistanceKm: number | null;
 };
-
-function formatMinSec(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = Math.round(totalSeconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 export default async function HistoryPage({
   searchParams,
@@ -67,7 +63,7 @@ export default async function HistoryPage({
   const logs = exerciseId
     ? await prisma.$queryRaw<LogRow[]>`
         SELECT "id", "date", "setNumber", "weightKg", "reps",
-               "durationSeconds", "distanceKm", "paceSecPerKm"
+               "durationSeconds", "distanceKm", "paceSecPerKm", "speedKmh"
         FROM "WorkoutLog"
         WHERE "userId" = ${userId} AND "exerciseId" = ${exerciseId}
         ORDER BY "date" ASC, "setNumber" ASC
@@ -152,7 +148,7 @@ export default async function HistoryPage({
                   <tr>
                     <th>Fecha</th>
                     <th>Tiempo</th>
-                    <th>Ritmo</th>
+                    <th>Velocidad</th>
                     <th>Distancia</th>
                     <th></th>
                   </tr>
@@ -180,9 +176,10 @@ export default async function HistoryPage({
                             : "—"}
                         </td>
                         <td className="num">
-                          {log.paceSecPerKm != null
-                            ? `${formatMinSec(log.paceSecPerKm)} /km`
-                            : "—"}
+                          {(() => {
+                            const speed = effectiveSpeedKmh(log.speedKmh, log.paceSecPerKm);
+                            return speed != null ? `${formatSpeedKmh(speed)} km/h` : "—";
+                          })()}
                         </td>
                         <td className="num">
                           {log.distanceKm != null

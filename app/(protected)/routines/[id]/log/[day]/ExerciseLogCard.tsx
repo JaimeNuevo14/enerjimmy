@@ -2,6 +2,44 @@
 
 import type { CardioEntryDraft, ExerciseDraftState, StrengthSetDraft } from "./draft";
 import { emptyCardio } from "./draft";
+import type { PreviousLog } from "./DayLogSession";
+import { effectiveSpeedKmh, formatMinSec, formatSpeedKmh } from "@/lib/cardio";
+
+function lastTimeLabel(date: Date) {
+  const d = new Date(date);
+  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
+// Compact, muted "last time" hint — read-only, purely informational, never
+// wired into the draft/finalize flow.
+function PreviousHint({ previous }: { previous: PreviousLog }) {
+  if (!previous) return null;
+
+  if ("cardio" in previous) {
+    const { durationSeconds, distanceKm, speedKmh, paceSecPerKm } = previous.cardio;
+    const speed = effectiveSpeedKmh(speedKmh, paceSecPerKm);
+    const parts: string[] = [];
+    if (durationSeconds != null) parts.push(formatMinSec(durationSeconds));
+    if (speed != null) parts.push(`${formatSpeedKmh(speed)} km/h`);
+    if (distanceKm != null) parts.push(`${distanceKm} km`);
+    if (parts.length === 0) return null;
+    return (
+      <div className="ex-meta" style={{ marginTop: -4 }}>
+        Última vez ({lastTimeLabel(previous.date)}): {parts.join(" · ")}
+      </div>
+    );
+  }
+
+  if (previous.sets.length === 0) return null;
+  const setsLabel = previous.sets
+    .map((s) => `${s.weightKg}kg×${s.reps}`)
+    .join(", ");
+  return (
+    <div className="ex-meta" style={{ marginTop: -4 }}>
+      Última vez ({lastTimeLabel(previous.date)}): {setsLabel}
+    </div>
+  );
+}
 
 // Purely a controlled view over the shared draft state held by
 // DayLogSession — no server calls happen here anymore. Every keystroke goes
@@ -12,6 +50,7 @@ export default function ExerciseLogCard({
   muscleGroup,
   targetSets,
   targetReps,
+  previous,
   state,
   onChange,
 }: {
@@ -19,6 +58,7 @@ export default function ExerciseLogCard({
   muscleGroup: string;
   targetSets: number;
   targetReps: string;
+  previous: PreviousLog;
   state: ExerciseDraftState;
   onChange: (next: ExerciseDraftState) => void;
 }) {
@@ -27,6 +67,7 @@ export default function ExerciseLogCard({
     return (
       <CardioLogCard
         exerciseName={exerciseName}
+        previous={previous}
         cardio={cardio}
         onChange={(next) => onChange({ kind: "cardio", cardio: next })}
       />
@@ -39,6 +80,7 @@ export default function ExerciseLogCard({
       exerciseName={exerciseName}
       targetSets={targetSets}
       targetReps={targetReps}
+      previous={previous}
       sets={sets}
       onChange={(next) => onChange({ kind: "strength", sets: next })}
     />
@@ -49,12 +91,14 @@ function StrengthLogCard({
   exerciseName,
   targetSets,
   targetReps,
+  previous,
   sets,
   onChange,
 }: {
   exerciseName: string;
   targetSets: number;
   targetReps: string;
+  previous: PreviousLog;
   sets: StrengthSetDraft[];
   onChange: (sets: StrengthSetDraft[]) => void;
 }) {
@@ -77,6 +121,7 @@ function StrengthLogCard({
         <div className="ex-meta">
           Objetivo: {targetSets} series x {targetReps} reps
         </div>
+        <PreviousHint previous={previous} />
       </div>
 
       <div>
@@ -149,10 +194,12 @@ function StrengthLogCard({
 // already just one entry.
 function CardioLogCard({
   exerciseName,
+  previous,
   cardio,
   onChange,
 }: {
   exerciseName: string;
+  previous: PreviousLog;
   cardio: CardioEntryDraft;
   onChange: (next: CardioEntryDraft) => void;
 }) {
@@ -178,6 +225,7 @@ function CardioLogCard({
       <div>
         <div className="ex-name" style={{ fontSize: 15 }}>{exerciseName}</div>
         <div className="ex-meta">Cardio · una entrada por sesión</div>
+        <PreviousHint previous={previous} />
       </div>
 
       <div>
@@ -189,11 +237,17 @@ function CardioLogCard({
       </div>
 
       <div>
-        <div className="field-label">Ritmo (min : seg / km)</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="set-row">
-          {numInput("paceMin", "min")}
-          {numInput("paceSec", "seg")}
-        </div>
+        <div className="field-label">Velocidad media (km/h)</div>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          min={0}
+          value={cardio.speedKmh}
+          onChange={(e) => set("speedKmh", e.target.value)}
+          placeholder="—"
+          className="input"
+        />
       </div>
 
       <div>
