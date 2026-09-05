@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createRoutine } from "@/lib/actions";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 export default async function RoutinesPage() {
   const session = await auth();
   const userId = session!.user.id;

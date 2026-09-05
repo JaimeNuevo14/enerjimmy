@@ -10,6 +10,12 @@ import {
 import ExercisePicker from "./ExercisePicker";
 import DaySelector from "./DaySelector";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 export default async function RoutineDetailPage({
   params,
 }: {
@@ -74,6 +80,7 @@ export default async function RoutineDetailPage({
             {day.exercises.length > 0 && (
               <Link
                 href={`/routines/${routine.id}/log/${day.dayOfWeek}`}
+                prefetch={false}
                 className="ex-target"
                 style={{ color: "var(--good)", fontWeight: 600 }}
               >

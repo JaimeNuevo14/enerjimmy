@@ -6,6 +6,12 @@ import ExercisePicker from "./ExercisePicker";
 import DeleteLogButton from "./DeleteLogButton";
 import Sparkline from "./Sparkline";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 // weightKg/reps/durationSeconds/distanceKm/paceSecPerKm and the whole
 // WorkoutSession table were added after the Prisma Client already generated
 // in this environment (see prisma/migrations/20260831000000_add_password_cardio_sessions),

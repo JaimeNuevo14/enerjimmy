@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { DIA_LABEL, hoyDia } from "@/lib/days";
 import { MUSCLE_LABEL, EQUIPMENT_LABEL } from "@/lib/days";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
@@ -105,6 +111,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href={`/routines/${routine.id}/log/${dia}`}
+            prefetch={false}
             className="btn btn-accent btn-block"
           >
             Empezar a registrar →

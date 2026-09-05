@@ -4,6 +4,12 @@ import NewExerciseForm from "./NewExerciseForm";
 import ExerciseFilters from "./ExerciseFilters";
 import ExerciseVisual from "@/components/ExerciseVisual";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 export default async function ExercisesPage({
   searchParams,
 }: {

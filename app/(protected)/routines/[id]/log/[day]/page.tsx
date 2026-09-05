@@ -5,6 +5,12 @@ import { DIA_LABEL, DIAS } from "@/lib/days";
 import DayLogSession from "./DayLogSession";
 import type { PreviousLog } from "./DayLogSession";
 
+// Always render fresh from Postgres — never let Next's Full Route
+// Cache or the client Router Cache serve a stale snapshot of this
+// user's live data (routines, logs, "última vez", session totals...).
+export const dynamic = "force-dynamic";
+
+
 // Raw SQL (not the typed client — see the comment on history/page.tsx for
 // why: speedKmh was added to the schema after this repo's Prisma Client was
 // last generated). For a given exercise, finds the most recent PRIOR
