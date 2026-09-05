@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DIA_LABEL, DIAS } from "@/lib/days";
-import ExerciseLogCard from "./ExerciseLogCard";
-import FinalizeRoutineButton from "./FinalizeRoutineButton";
+import DayLogSession from "./DayLogSession";
 
 export default async function LogDayPage({
   params,
@@ -50,25 +49,19 @@ export default async function LogDayPage({
         </div>
       )}
 
-      {day?.exercises.map((re) => (
-        <ExerciseLogCard
-          key={re.id}
-          routineId={routine.id}
-          day={params.day}
-          routineExerciseId={re.id}
-          exerciseId={re.exerciseId}
-          exerciseName={re.exercise.name}
-          muscleGroup={re.exercise.muscleGroup}
-          targetSets={re.targetSets}
-          targetReps={re.targetReps}
-        />
-      ))}
-
       {day && day.exercises.length > 0 && (
-        <FinalizeRoutineButton
+        <DayLogSession
           routineId={routine.id}
           day={params.day}
           routineDayId={day.id}
+          exercises={day.exercises.map((re) => ({
+            routineExerciseId: re.id,
+            exerciseId: re.exerciseId,
+            exerciseName: re.exercise.name,
+            muscleGroup: re.exercise.muscleGroup,
+            targetSets: re.targetSets,
+            targetReps: re.targetReps,
+          }))}
         />
       )}
     </>

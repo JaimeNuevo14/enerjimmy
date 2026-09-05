@@ -1,104 +1,73 @@
 "use client";
 
-import { useState } from "react";
-import { logSets, logCardio } from "@/lib/actions";
+import type { CardioEntryDraft, ExerciseDraftState, StrengthSetDraft } from "./draft";
+import { emptyCardio } from "./draft";
 
-type SetRow = { weight: string; reps: string };
-
+// Purely a controlled view over the shared draft state held by
+// DayLogSession — no server calls happen here anymore. Every keystroke goes
+// straight into the lifted-up draft (and from there into localStorage);
+// nothing is written to the database until "Finalizar rutina" is pressed.
 export default function ExerciseLogCard({
-  routineId,
-  day,
-  routineExerciseId,
-  exerciseId,
   exerciseName,
   muscleGroup,
   targetSets,
   targetReps,
+  state,
+  onChange,
 }: {
-  routineId: string;
-  day: string;
-  routineExerciseId: string;
-  exerciseId: string;
   exerciseName: string;
   muscleGroup: string;
   targetSets: number;
   targetReps: string;
+  state: ExerciseDraftState;
+  onChange: (next: ExerciseDraftState) => void;
 }) {
   if (muscleGroup === "cardio") {
+    const cardio = state.kind === "cardio" ? state.cardio : emptyCardio();
     return (
       <CardioLogCard
-        routineId={routineId}
-        day={day}
-        routineExerciseId={routineExerciseId}
-        exerciseId={exerciseId}
         exerciseName={exerciseName}
+        cardio={cardio}
+        onChange={(next) => onChange({ kind: "cardio", cardio: next })}
       />
     );
   }
 
+  const sets = state.kind === "strength" ? state.sets : [];
   return (
     <StrengthLogCard
-      routineId={routineId}
-      day={day}
-      routineExerciseId={routineExerciseId}
-      exerciseId={exerciseId}
       exerciseName={exerciseName}
       targetSets={targetSets}
       targetReps={targetReps}
+      sets={sets}
+      onChange={(next) => onChange({ kind: "strength", sets: next })}
     />
   );
 }
 
 function StrengthLogCard({
-  routineId,
-  day,
-  routineExerciseId,
-  exerciseId,
   exerciseName,
   targetSets,
   targetReps,
+  sets,
+  onChange,
 }: {
-  routineId: string;
-  day: string;
-  routineExerciseId: string;
-  exerciseId: string;
   exerciseName: string;
   targetSets: number;
   targetReps: string;
+  sets: StrengthSetDraft[];
+  onChange: (sets: StrengthSetDraft[]) => void;
 }) {
-  const [rows, setRows] = useState<SetRow[]>(
-    Array.from({ length: targetSets }, () => ({ weight: "", reps: "" }))
-  );
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  function updateRow(i: number, field: keyof SetRow, value: string) {
-    setRows((prev) =>
-      prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r))
-    );
-    setSaved(false);
+  function updateRow(i: number, field: keyof StrengthSetDraft, value: string) {
+    onChange(sets.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { weight: "", reps: "" }]);
+    onChange([...sets, { weight: "", reps: "" }]);
   }
 
-  async function handleSave() {
-    const sets = rows
-      .filter((r) => r.weight !== "" && r.reps !== "")
-      .map((r) => ({ weightKg: parseFloat(r.weight), reps: parseInt(r.reps, 10) }));
-
-    if (sets.length === 0) return;
-
-    setSaving(true);
-    const formData = new FormData();
-    formData.set("exerciseId", exerciseId);
-    formData.set("routineExerciseId", routineExerciseId);
-    formData.set("sets", JSON.stringify(sets));
-
-    await logSets(routineId, day, formData);
-    setSaving(false);
-    setSaved(true);
+  function removeRow(i: number) {
+    onChange(sets.filter((_, idx) => idx !== i));
   }
 
   return (
@@ -114,7 +83,7 @@ function StrengthLogCard({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "28px 1fr 1fr 32px",
+            gridTemplateColumns: "28px 1fr 1fr 32px 32px",
             gap: 10,
           }}
         >
@@ -122,11 +91,12 @@ function StrengthLogCard({
           <div className="field-label">Peso (kg)</div>
           <div className="field-label">Reps</div>
           <div className="field-label"></div>
+          <div className="field-label"></div>
         </div>
-        {rows.map((row, i) => {
+        {sets.map((row, i) => {
           const done = row.weight !== "" && row.reps !== "";
           return (
-            <div key={i} className="set-row">
+            <div key={i} className="set-row has-delete">
               <span className="idx">{i + 1}</span>
               <input
                 type="number"
@@ -148,100 +118,56 @@ function StrengthLogCard({
               <span className={`set-check ${done ? "done" : ""}`}>
                 {done ? "✓" : i + 1}
               </span>
+              <button
+                type="button"
+                className="set-del"
+                onClick={() => removeRow(i)}
+                aria-label={`Eliminar serie ${i + 1}`}
+              >
+                ×
+              </button>
             </div>
           );
         })}
+        {sets.length === 0 && (
+          <p className="empty" style={{ padding: "8px 0" }}>
+            Sin series todavía.
+          </p>
+        )}
       </div>
 
       <button onClick={addRow} type="button" className="btn btn-ghost btn-block">
         + Añadir serie
-      </button>
-
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        type="button"
-        className={`btn btn-block ${saved ? "btn-good" : "btn-accent"}`}
-      >
-        {saving ? "Guardando..." : saved ? "Guardado ✓" : "Guardar y siguiente ejercicio →"}
       </button>
     </div>
   );
 }
 
 // Cardio (cinta, elíptica, bicicleta, ...): one session entry with
-// tiempo/ritmo/distancia instead of a grid of weight/reps sets.
+// tiempo/ritmo/distancia instead of a grid of weight/reps sets. Freely
+// editable at any time before finalizing; no add/remove needed since it's
+// already just one entry.
 function CardioLogCard({
-  routineId,
-  day,
-  routineExerciseId,
-  exerciseId,
   exerciseName,
+  cardio,
+  onChange,
 }: {
-  routineId: string;
-  day: string;
-  routineExerciseId: string;
-  exerciseId: string;
   exerciseName: string;
+  cardio: CardioEntryDraft;
+  onChange: (next: CardioEntryDraft) => void;
 }) {
-  const [minutes, setMinutes] = useState("");
-  const [seconds, setSeconds] = useState("");
-  const [paceMin, setPaceMin] = useState("");
-  const [paceSec, setPaceSec] = useState("");
-  const [distance, setDistance] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const hasAnyInput =
-    minutes !== "" ||
-    seconds !== "" ||
-    paceMin !== "" ||
-    paceSec !== "" ||
-    distance !== "";
-
-  async function handleSave() {
-    if (!hasAnyInput) return;
-
-    const durationSeconds =
-      minutes !== "" || seconds !== ""
-        ? (parseInt(minutes || "0", 10) || 0) * 60 +
-          (parseInt(seconds || "0", 10) || 0)
-        : null;
-    const paceSecPerKm =
-      paceMin !== "" || paceSec !== ""
-        ? (parseInt(paceMin || "0", 10) || 0) * 60 +
-          (parseInt(paceSec || "0", 10) || 0)
-        : null;
-    const distanceKm = distance !== "" ? parseFloat(distance) : null;
-
-    setSaving(true);
-    const formData = new FormData();
-    formData.set("exerciseId", exerciseId);
-    formData.set("routineExerciseId", routineExerciseId);
-    if (durationSeconds !== null) formData.set("durationSeconds", String(durationSeconds));
-    if (paceSecPerKm !== null) formData.set("paceSecPerKm", String(paceSecPerKm));
-    if (distanceKm !== null) formData.set("distanceKm", String(distanceKm));
-
-    await logCardio(routineId, day, formData);
-    setSaving(false);
-    setSaved(true);
+  function set<K extends keyof CardioEntryDraft>(field: K, value: CardioEntryDraft[K]) {
+    onChange({ ...cardio, [field]: value });
   }
 
-  function numInput(
-    value: string,
-    onChange: (v: string) => void,
-    placeholder: string
-  ) {
+  function numInput(field: keyof CardioEntryDraft, placeholder: string) {
     return (
       <input
         type="number"
         inputMode="numeric"
         min={0}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setSaved(false);
-        }}
+        value={cardio[field]}
+        onChange={(e) => set(field, e.target.value)}
         placeholder={placeholder}
       />
     );
@@ -257,16 +183,16 @@ function CardioLogCard({
       <div>
         <div className="field-label">Tiempo (min : seg)</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="set-row">
-          {numInput(minutes, setMinutes, "min")}
-          {numInput(seconds, setSeconds, "seg")}
+          {numInput("minutes", "min")}
+          {numInput("seconds", "seg")}
         </div>
       </div>
 
       <div>
         <div className="field-label">Ritmo (min : seg / km)</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="set-row">
-          {numInput(paceMin, setPaceMin, "min")}
-          {numInput(paceSec, setPaceSec, "seg")}
+          {numInput("paceMin", "min")}
+          {numInput("paceSec", "seg")}
         </div>
       </div>
 
@@ -277,24 +203,12 @@ function CardioLogCard({
           inputMode="decimal"
           step="0.01"
           min={0}
-          value={distance}
-          onChange={(e) => {
-            setDistance(e.target.value);
-            setSaved(false);
-          }}
+          value={cardio.distance}
+          onChange={(e) => set("distance", e.target.value)}
           placeholder="—"
           className="input"
         />
       </div>
-
-      <button
-        onClick={handleSave}
-        disabled={saving || !hasAnyInput}
-        type="button"
-        className={`btn btn-block ${saved ? "btn-good" : "btn-accent"}`}
-      >
-        {saving ? "Guardando..." : saved ? "Guardado ✓" : "Guardar y siguiente ejercicio →"}
-      </button>
     </div>
   );
 }

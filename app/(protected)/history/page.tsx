@@ -116,7 +116,13 @@ export default async function HistoryPage({
       {exercises.length > 0 && (
         <>
           <ExercisePicker
-            exercises={exercises.map((e) => ({ id: e.id, name: e.name }))}
+            exercises={exercises.map((e) => ({
+              id: e.id,
+              name: e.name,
+              muscleGroup: e.muscleGroup,
+              equipment: e.equipment,
+              category: e.category,
+            }))}
             selected={exerciseId}
           />
 
