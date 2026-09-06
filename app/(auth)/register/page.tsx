@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+// Same reason as the login page: useSearchParams() needs a Suspense
+// boundary to keep this page eligible for static prerendering.
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Same same-site-only guard as the login page — see there for why.
+  const rawCallbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = rawCallbackUrl.startsWith("/") ? rawCallbackUrl : "/";
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +54,11 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (signInRes?.error) {
-      router.push("/login");
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
 
-    router.push("/");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -108,7 +122,10 @@ export default function RegisterPage() {
           style={{ textAlign: "center", marginTop: 16 }}
         >
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" style={{ color: "var(--accent)", fontWeight: 600 }}>
+          <Link
+            href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            style={{ color: "var(--accent)", fontWeight: 600 }}
+          >
             Inicia sesión
           </Link>
         </p>

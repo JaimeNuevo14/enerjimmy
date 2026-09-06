@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -108,6 +109,92 @@ export async function renameRoutine(routineId: string, formData: FormData) {
 
   revalidatePath(`/routines/${routineId}`);
   revalidatePath("/routines");
+}
+
+// ---------------- Compartir rutina ----------------
+
+// shareToken was added to the schema after this repo's Prisma Client was
+// last generated in this environment (same situation as speedKmh — see the
+// comment on app/(protected)/history/page.tsx), so it's read/written via
+// raw SQL here rather than the typed client, which would otherwise not
+// know the column exists.
+
+// Idempotent: a routine keeps the same shareToken forever once generated,
+// so re-sharing later reuses the same link instead of invalidating old
+// ones. Only ever WRITES the shareToken column on the owner's own routine
+// — never touches days/exercises/other users.
+export async function getOrCreateShareToken(
+  routineId: string
+): Promise<{ ok: boolean; token?: string; message?: string }> {
+  const userId = await requireUserId();
+
+  const rows = await prisma.$queryRaw<{ shareToken: string | null }[]>`
+    SELECT "shareToken" FROM "Routine" WHERE "id" = ${routineId} AND "userId" = ${userId}
+  `;
+  const routine = rows[0];
+  if (!routine) return { ok: false, message: "No autorizado." };
+  if (routine.shareToken) return { ok: true, token: routine.shareToken };
+
+  // Extremely unlikely to collide (12 base64url chars ≈ 72 bits), but retry
+  // a few times against the unique constraint just in case.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const token = randomBytes(9).toString("base64url");
+    try {
+      await prisma.$executeRaw`
+        UPDATE "Routine" SET "shareToken" = ${token} WHERE "id" = ${routineId}
+      `;
+      return { ok: true, token };
+    } catch {
+      // Unique collision — try again with a fresh token.
+    }
+  }
+  return { ok: false, message: "No se pudo generar el enlace. Inténtalo de nuevo." };
+}
+
+// Clones a shared routine (its days + exercises) into a brand new Routine
+// owned by whoever is importing it. Purely additive: it only ever CREATES
+// rows for the importing user; the original routine, its owner, and every
+// other user's data are only ever READ, never written to.
+export async function importSharedRoutine(
+  token: string
+): Promise<{ ok: boolean; routineId?: string; message?: string }> {
+  const userId = await requireUserId();
+
+  const routineRows = await prisma.$queryRaw<{ id: string; name: string }[]>`
+    SELECT "id", "name" FROM "Routine" WHERE "shareToken" = ${token}
+  `;
+  const source = routineRows[0];
+  if (!source) return { ok: false, message: "Este enlace de rutina no es válido." };
+
+  const days = await prisma.routineDay.findMany({
+    where: { routineId: source.id },
+    orderBy: { order: "asc" },
+    include: { exercises: { orderBy: { order: "asc" } } },
+  });
+
+  const created = await prisma.routine.create({
+    data: {
+      userId,
+      name: source.name,
+      days: {
+        create: days.map((day) => ({
+          dayOfWeek: day.dayOfWeek,
+          order: day.order,
+          exercises: {
+            create: day.exercises.map((re) => ({
+              exerciseId: re.exerciseId,
+              order: re.order,
+              targetSets: re.targetSets,
+              targetReps: re.targetReps,
+            })),
+          },
+        })),
+      },
+    },
+  });
+
+  revalidatePath("/routines");
+  return { ok: true, routineId: created.id };
 }
 
 // ---------------- Routine exercises (per day) ----------------

@@ -1,12 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+// useSearchParams() (needed to read ?callbackUrl=... for shared-routine
+// links — see the share flow) opts a page out of static prerendering
+// unless it's wrapped in Suspense, so the actual form lives in LoginForm
+// and this default export just supplies that boundary.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Only ever follow a same-site relative path (e.g. a shared-routine
+  // link) — never an absolute/external URL, so this can't be turned into
+  // an open redirect.
+  const rawCallbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = rawCallbackUrl.startsWith("/") ? rawCallbackUrl : "/";
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +48,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -99,7 +117,10 @@ export default function LoginPage() {
           style={{ textAlign: "center", marginTop: 16 }}
         >
           ¿No tienes cuenta?{" "}
-          <Link href="/register" style={{ color: "var(--accent)", fontWeight: 600 }}>
+          <Link
+            href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            style={{ color: "var(--accent)", fontWeight: 600 }}
+          >
             Regístrate
           </Link>
         </p>

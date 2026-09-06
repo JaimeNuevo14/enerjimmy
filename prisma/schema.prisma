@@ -48,6 +48,12 @@ model Routine {
   userId    String
   name      String
   createdAt DateTime @default(now())
+  // Set the first time the owner presses "Compartir": a short random token
+  // used in /share/[token] links. Null means "never shared yet" — sharing
+  // never touches any other field or any other user's data, it only ever
+  // *creates* a brand new Routine (+ days + exercises) for whoever imports
+  // it, owned by them.
+  shareToken String? @unique
 
   user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   days RoutineDay[]
